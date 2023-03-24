@@ -20,6 +20,11 @@ unsigned long previousMillis = 0;
 const char* mqtt_server = "172.16.5.101";
 const int mqtt_port = 1883;
 
+int timer = 0;
+
+void reset() ;
+void callback(char* topic, byte* payload, unsigned int length);
+
 void setup() {
 
     // Initialize the serial port
@@ -39,10 +44,8 @@ void setup() {
     }
 
     Serial.println("WiFi connection Successful");
-    Serial.println("The IP Address of ESP32 Module is: ");
+    Serial.print("The IP Address of ESP32 Module is: ");
     Serial.println(WiFi.localIP());// Print the IP address
-
-    Serial.print("\n");
 
     MQTT_CLIENT.setServer(mqtt_server, mqtt_port);
 
@@ -55,51 +58,74 @@ void setup() {
       Serial.println("Looks like the server connection failed...");
     }
 
+    MQTT_CLIENT.setCallback(callback);
+
+    MQTT_CLIENT.subscribe("alexis/lumiere");
+
     while(!ccs.available());
 }
 
 void loop() {
-    unsigned long currentMillis = millis();
-    if((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >= interval)){
-        Serial.println('Tentative de reconnexion');
-        MQTT_CLIENT.disconnect();
-        WiFi.disconnect();
-        WiFi.reconnect();
-        MQTT_CLIENT.connect("");
-        previousMillis = currentMillis;
-    }
     MQTT_CLIENT.loop();
-    if(ccs.available()){
-        if(!ccs.readData()){
-            char buffer[64];
-            char buffer2[64];
-            char buffer3[64];
 
-            float co2 = ccs.geteCO2();
-            float tvoc = ccs.getTVOC();
-            float co = analogRead(mq2_pin);
+    if (timer % 1000 == 0){
+	    unsigned long currentMillis = millis();
+	    if((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >= interval)){
+		previousMillis = currentMillis;
+		reset();
+	    }
+	    if(ccs.available()){
+		if(!ccs.readData()){
+		    char buffer[64];
+		    char buffer2[64];
+		    char buffer3[64];
 
-            utoa(co2, buffer, 10);
-            utoa(tvoc, buffer2, 10);
-            utoa(co, buffer3, 10);
+		    float co2 = ccs.geteCO2();
+		    float tvoc = ccs.getTVOC();
+		    float co = analogRead(mq2_pin);
 
-            if(MQTT_CLIENT.publish("alexis/co2", buffer) &
-               MQTT_CLIENT.publish("alexis/tvoc", buffer2) &
-               MQTT_CLIENT.publish("alexis/co", buffer3))
-            {
-                Serial.println("Publish message success");
-            }
-            else
-            {
-                Serial.println("Could not send message :(");
-            }
+		    utoa(co2, buffer, 10);
+		    utoa(tvoc, buffer2, 10);
+		    utoa(co, buffer3, 10);
 
-            Serial.println(co2);
-            Serial.println(tvoc);
-        }
+		    if(MQTT_CLIENT.publish("alexis/co2", buffer) &
+		       MQTT_CLIENT.publish("alexis/tvoc", buffer2) &
+		       MQTT_CLIENT.publish("alexis/co", buffer3))
+		    {
+			Serial.println("Publish message success");
+		    }
+		    else
+		    {
+			Serial.println("Could not send message :(");
+			reset();
+		    }
 
+		    Serial.println(co2);
+		    Serial.println(tvoc);
+		}
+
+	    }
+	
     }
 
-  delay(5000);
+    timer += 10;
+    delay(10);
+
+}
+
+void callback(char* topic, byte* payload, unsigned int length){
+	Serial.print("Message");
+  	for (int i = 0; i < length; i++) {
+	    Serial.print((char)payload[i]);
+  	}
+
+}
+
+void reset(){
+    Serial.println("Tentative de reconnexion");
+    MQTT_CLIENT.disconnect();
+    WiFi.disconnect();
+    WiFi.reconnect();
+    MQTT_CLIENT.connect("");
 }
 
