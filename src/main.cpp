@@ -2,15 +2,15 @@
 #include <Adafruit_CCS811.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <ESP_WiFiManager.h>
 #include <PubSubClient.h>
 #include <SPI.h>
+
+#define ONBOARD_LED 2
 
 Adafruit_CCS811 ccs;
 WiFiClient espClient;
 PubSubClient MQTT_CLIENT(espClient);
-
-const char* ssid = "EcoleDuWeb2.4g";
-const char* password = "EcoleDuWEB";
 
 const int mq2_pin = 39;
 
@@ -30,13 +30,20 @@ void setup() {
     // Initialize the serial port
     Serial.begin(115200);
 
+    pinMode(ONBOARD_LED, OUTPUT);
+
     if(!ccs.begin()){
         Serial.println("Failed to start sensor! Please check your wiring.");
-        while(1);
+        while(true);
     }
 
+    Serial.print("Starting wifi manager");
+
     // Connect to WiFi
-    WiFi.begin(ssid, password);
+    ESP_WiFiManager wifiManager;
+
+    wifiManager.autoConnect("AutoConnect");
+
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
@@ -115,9 +122,15 @@ void loop() {
 
 void callback(char* topic, byte* payload, unsigned int length){
 	Serial.print("Message");
+
+	digitalWrite(ONBOARD_LED, (payload[0] == '1') ? HIGH : LOW);
+	Serial.println((char)payload[0]);
+
+	/*
   	for (int i = 0; i < length; i++) {
 	    Serial.print((char)payload[i]);
   	}
+	*/
 
 }
 
