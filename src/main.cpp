@@ -1,11 +1,16 @@
 #include <Arduino.h>
 #include <Adafruit_CCS811.h>
 #include <Wire.h>
+#include <WebServer.h>
 #include <WiFi.h>
-#include <ESP_WiFiManager.h>
+#include <WiFiManager.h>
+#include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
 #include <SPI.h>
 
+
+// https://github.com/khoih-prog/ESP_WiFiManager#why-do-we-need-the-new-async-espasync_wifimanager-library
+// Using Multiwifi and auto(re)connect feature
 #define ONBOARD_LED 2
 
 Adafruit_CCS811 ccs;
@@ -40,14 +45,17 @@ void setup() {
     Serial.print("Starting wifi manager");
 
     // Connect to WiFi
-    ESP_WiFiManager wifiManager;
+    WiFiManager wifiManager;
 
-    wifiManager.autoConnect("AutoConnect");
+    wifiManager.setConnectTimeout(30);
 
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print("*");
+
+
+    if (!wifiManager.autoConnect("ESPAlexis")){
+        Serial.println("Erreur de connexion.");
+    }
+    else {
+        Serial.println("Connexion Établie.");
     }
 
     Serial.println("WiFi connection Successful");
